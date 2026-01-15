@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shelley Power Toys</title>
+  <style>
+    :root { --bg: #0d1117; --text: #e6edf3; --accent: #58a6ff; --border: #30363d; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 2.5em; margin-bottom: 0.5em; }
+    h2 { margin-top: 2em; margin-bottom: 0.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+    p { margin: 1em 0; }
+    a { color: var(--accent); }
+    .download { display: inline-block; padding: 12px 24px; background: #238636; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 1em 0; }
+    .download:hover { background: #2ea043; }
+    pre { background: #161b22; padding: 16px; border-radius: 6px; overflow-x: auto; margin: 1em 0; }
+    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+    kbd { display: inline-block; padding: 2px 6px; background: #21262d; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 0.85em; }
+    .feature { margin: 1em 0; }
+    .feature strong { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Shelley Power Toys</h1>
+    <p>Power tools for Shelley agent management on exe.dev VMs.</p>
+    
+    <a href="shelley-power-toys.skill" class="download">⬇️ Download Skill Package</a>
+    
+    <h2>Features</h2>
+    <div class="feature"><strong>branch</strong> — Branch conversations with visual picker UI</div>
+    <div class="feature"><strong>spawn</strong> — Create sub-agents in separate context windows</div>
+    <div class="feature"><strong>checkpoint</strong> — Named savepoints within conversations</div>
+    <div class="feature"><strong>memory</strong> — Persistent notes across conversations</div>
+    <div class="feature"><strong>status</strong> — Context window usage monitoring</div>
+    
+    <h2>Keyboard Shortcuts (Branch Picker)</h2>
+    <p>
+      <kbd>/</kbd> search · 
+      <kbd>j</kbd><kbd>k</kbd> navigate · 
+      <kbd>Enter</kbd> select · 
+      <kbd>Esc</kbd> back · 
+      <kbd>g</kbd><kbd>g</kbd> top · 
+      <kbd>G</kbd> bottom
+    </p>
+    
+    <h2>Installation</h2>
+    <pre><code>git clone https://github.com/jmandel/shelley-power-toys ~/.shelley-power-toys
+export PATH="$PATH:$HOME/.shelley-power-toys/scripts"</code></pre>
+    
+    <h2>Quick Start</h2>
+    <pre><code># Branch a conversation
+./scripts/branch
+
+# Spawn a sub-agent
+./scripts/spawn "analyze the logs"
+
+# Save a checkpoint
+./scripts/checkpoint save "before-refactor"
+
+# Store a memory
+./scripts/memory set "api-key" "in .env"
+
+# Check context usage
+./scripts/status</code></pre>
+    
+    <p><a href="https://github.com/jmandel/shelley-power-toys">View on GitHub →</a></p>
+  </div>
+</body>
+</html>
