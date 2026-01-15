@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Show conversation status and context window usage.
+
+Usage:
+    status                # List recent conversations
+    status -c <id>        # Show specific conversation
+    status --json         # Output as JSON
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from lib import db
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Conversation status')
+    parser.add_argument('-c', '--conversation', help='Conversation ID')
+    parser.add_argument('--json', action='store_true', help='JSON output')
+    parser.add_argument('-n', '--limit', type=int, default=10, help='Number of conversations')
+    args = parser.parse_args()
+    
+    conv_id = args.conversation or os.environ.get('SHELLEY_CONVERSATION_ID')
+    context_limit = 200000
+    
+    if not conv_id:
+        # List recent conversations
+        conversations = db.list_conversations(args.limit)
+        
+        if args.json:
+            output = []
+            for c in conversations:
+                tokens = db.estimate_tokens(c['conversation_id'])
+                output.append({
+                    'id': c['conversation_id'],
+                    'slug': c.get('slug'),
+                    'tokens': tokens['total_tokens'],
+                    'pct': round(tokens['total_tokens'] / context_limit * 100, 1)
+                })
+            print(json.dumps(output, indent=2))
+        else:
+            for c in conversations:
+                tokens = db.estimate_tokens(c['conversation_id'])
+                pct = min(100, int(tokens['total_tokens'] / context_limit * 100))
+                bar = '█' * (pct // 10) + '░' * (10 - pct // 10)
+                print(f"{c['conversation_id']} {c.get('slug', '')[:30]}")
+                print(f"  [{bar}] {pct}% (~{tokens['total_tokens']:,} tokens)")
+        return
+    
+    # Show specific conversation
+    conv = db.get_conversation(conv_id)
+    if not conv:
+        print(f"Not found: {conv_id}", file=sys.stderr)
+        sys.exit(1)
+    
+    messages = db.get_messages(conv_id)
+    tokens = db.estimate_tokens(conv_id)
+    
+    user_turns = sum(1 for m in messages if m['type'] == 'user')
+    agent_turns = sum(1 for m in messages if m['type'] == 'agent')
+    pct = min(100, int(tokens['total_tokens'] / context_limit * 100))
+    
+    if args.json:
+        print(json.dumps({
+            'id': conv_id,
+            'slug': conv.get('slug'),
+            'turns': len(messages),
+            'user_turns': user_turns,
+            'agent_turns': agent_turns,
+            'tokens': tokens['total_tokens'],
+            'pct': pct,
+            'remaining': context_limit - tokens['total_tokens']
+        }, indent=2))
+    else:
+        bar = '█' * (pct // 10) + '░' * (10 - pct // 10)
+        remaining = context_limit - tokens['total_tokens']
+        
+        print(f"{conv_id} ({conv.get('slug', 'untitled')})")
+        print(f"Turns: {len(messages)} ({user_turns} user, {agent_turns} agent)")
+        print(f"Tokens: ~{tokens['total_tokens']:,}")
+        print(f"[{bar}] {pct}%")
+        
+        if pct < 50:
+            print(f"✓ Healthy (~{remaining:,} remaining)")
+        elif pct < 80:
+            print(f"⚠ Getting full (~{remaining:,} remaining)")
+        else:
+            print(f"⚠ Nearly full! Consider branching.")
+
+
+if __name__ == '__main__':
+    main()

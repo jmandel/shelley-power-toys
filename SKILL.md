@@ -16,157 +16,135 @@ description: >
 
 Power tools for managing Shelley conversations and context on exe.dev.
 
-## Quick Reference
+## Commands
 
-| Command | What it does |
-|---------|-------------|
-| `power-toy branch` | Launch picker UI to branch current conversation |
-| `power-toy branch -c <id>` | Branch a specific conversation (unstick) |
-| `power-toy spawn "<task>"` | Spawn sub-agent, wait for result |
-| `power-toy spawn "<task>" --async` | Spawn and return conversation ID |
-| `power-toy checkpoint save <name>` | Save current turn as named checkpoint |
-| `power-toy checkpoint restore <name>` | Branch from a checkpoint |
-| `power-toy memory set <key> <value>` | Store a persistent fact |
-| `power-toy memory note "<text>"` | Store a freeform note |
-| `power-toy memory search <query>` | Search memories |
-| `power-toy status` | Show context window usage |
+| Script | Purpose |
+|--------|--------|
+| `branch` | Branch conversations with visual picker UI |
+| `spawn` | Create sub-agents in separate context windows |
+| `checkpoint` | Named savepoints within conversations |
+| `memory` | Persistent key-value and notes across conversations |
+| `status` | Context window usage and conversation health |
 
-## Branch
+## branch
 
-Branch creates a new conversation from a specific point in an existing one.
+Branch creates a new conversation from a specific point.
 
-**Branch current conversation:**
 ```bash
-./scripts/power-toy branch
+# Launch visual picker for current conversation
+./scripts/branch
+
+# Launch picker for a specific conversation (unstick use case)
+./scripts/branch -c cXYZ789
+
+# Browse all conversations first
+./scripts/branch --pick
+
+# Branch directly without UI (if you know the sequence)
+./scripts/branch -c cXYZ789 -s 50
 ```
-This launches a picker UI. Return the URL to the user:
+
+**Picker UI Keyboard Shortcuts:**
+- `/` - Focus search
+- `j`/`k` or ↑/↓ - Navigate
+- `Enter` - Select / Confirm
+- `Esc` - Back / Cancel
+- `gg` - Jump to top
+- `G` - Jump to bottom
+
+Return the picker URL to the user:
 > "Visit {URL} to select where to branch from"
 
-The user clicks on a turn, the branch is created, and they're redirected to the new conversation.
+## spawn
 
-**Unstick a stuck conversation:**
+Spawn creates a sub-agent to handle a task in a separate context.
+
 ```bash
-./scripts/power-toy branch --conversation cXYZ789
-```
-Same flow, but for a different conversation that may have hit context limits.
+# Wait for result (synchronous)
+./scripts/spawn "Analyze the error logs in /var/log/app.log"
 
-**Browse all conversations:**
-```bash
-./scripts/power-toy branch --pick
-```
-Shows conversation list first, then branch point picker.
+# Return immediately (asynchronous)
+./scripts/spawn "Build a web scraper" --async
 
-## Spawn
-
-Spawn creates a sub-agent to handle a task in a separate context window.
-
-**Synchronous (wait for result):**
-```bash
-./scripts/power-toy spawn "Analyze the error logs in /var/log/app.log and summarize issues"
-```
-Blocks until complete, returns the sub-agent's final response.
-
-**Asynchronous (fire and forget):**
-```bash
-./scripts/power-toy spawn "Build a web scraper for news.ycombinator.com" --async
-```
-Returns immediately with the conversation ID. Check status later or let it run.
-
-**With working directory:**
-```bash
-./scripts/power-toy spawn "Run the test suite" --cwd /home/exedev/myproject
+# With specific working directory
+./scripts/spawn "Run tests" --cwd /home/exedev/myproject
 ```
 
-## Checkpoint
+## checkpoint
 
 Checkpoints are named savepoints within a conversation.
 
-**Save a checkpoint:**
 ```bash
-./scripts/power-toy checkpoint save "before-refactor"
-```
-Marks the current turn with a name for later reference.
+# Save current turn as checkpoint
+./scripts/checkpoint save "before-refactor"
 
-**List checkpoints:**
-```bash
-./scripts/power-toy checkpoint list
+# List all checkpoints
+./scripts/checkpoint list
+
+# Restore (creates a branch from that point)
+./scripts/checkpoint restore "before-refactor"
+
+# Delete a checkpoint
+./scripts/checkpoint delete "before-refactor"
 ```
 
-**Restore (branch from checkpoint):**
-```bash
-./scripts/power-toy checkpoint restore "before-refactor"
-```
-Creates a new conversation branched from that checkpoint.
-
-## Memory
+## memory
 
 Memory persists facts and notes across all conversations.
 
-**Store a key-value fact:**
 ```bash
-./scripts/power-toy memory set "db-password" "stored in .env.local"
-./scripts/power-toy memory set "preferred-language" "TypeScript"
+# Store facts
+./scripts/memory set "db-password" "stored in .env.local"
+./scripts/memory set "preferred-language" "TypeScript"
+
+# Retrieve
+./scripts/memory get "db-password"
+
+# Add freeform notes
+./scripts/memory note "User prefers minimal dependencies"
+
+# Search
+./scripts/memory search "password"
+
+# List all
+./scripts/memory list
 ```
 
-**Store a freeform note:**
+Memories stored in `~/.config/shelley/power-toys-memory.json`.
+
+## status
+
+Status shows conversation health and context usage.
+
 ```bash
-./scripts/power-toy memory note "User prefers dark mode and minimal dependencies"
+# List recent conversations with usage
+./scripts/status
+
+# Detailed view of specific conversation
+./scripts/status -c cXYZ789
+
+# JSON output
+./scripts/status --json
 ```
 
-**Retrieve:**
-```bash
-./scripts/power-toy memory get "db-password"
-./scripts/power-toy memory search "password"
-./scripts/power-toy memory list
-```
-
-Memories are stored in `~/.config/shelley/power-toys-memory.json`.
-
-## Status
-
-Status shows conversation health and context window usage.
-
-```bash
-./scripts/power-toy status
-```
-
-Output:
-```
-Conversation: cABC123 (my-project-refactor)
-Turns: 47 (24 user, 23 agent)
-Estimated tokens: ~45,000
-Context usage: ████████░░ 78%
-Status: Healthy (room for ~12,000 more tokens)
-```
-
-**Check another conversation:**
-```bash
-./scripts/power-toy status --conversation cXYZ789
-```
-
-## Environment
-
-The power-toy script expects these environment variables (auto-detected on exe.dev):
+## Environment Variables
 
 - `SHELLEY_DB` - Path to shelley.db (default: `~/.config/shelley/shelley.db`)
 - `SHELLEY_API` - Shelley API base URL (default: `http://localhost:9999/api`)
-- `SHELLEY_CONVERSATION_ID` - Current conversation ID (set by Shelley)
+- `SHELLEY_CONVERSATION_ID` - Current conversation ID
 - `SHELLEY_CWD` - Current working directory
 
 ## Installation
 
-Clone the repository and add to your path:
-
 ```bash
 git clone https://github.com/anthropics/shelley-power-toys ~/.shelley-power-toys
-echo 'export PATH="$PATH:$HOME/.shelley-power-toys/scripts"' >> ~/.bashrc
+export PATH="$PATH:$HOME/.shelley-power-toys/scripts"
 ```
 
-Or reference directly in your `~/.config/shelley/AGENTS.md`:
+Or add to `~/.config/shelley/AGENTS.md`:
 
 ```markdown
 ## Power Toys
-
-Power tools are available at ~/.shelley-power-toys/scripts/power-toy
+Available at ~/.shelley-power-toys/scripts/
 See ~/.shelley-power-toys/SKILL.md for usage.
 ```

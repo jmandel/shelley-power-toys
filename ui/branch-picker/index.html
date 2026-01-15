@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Branch Picker - Shelley Power Toys</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1 id="title">Branch Conversation</h1>
+            <div id="search-container">
+                <input type="text" id="search" placeholder="Search... (/)" autocomplete="off">
+                <span id="search-hint">↑↓ navigate · Enter select · Esc clear</span>
+            </div>
+        </header>
+        
+        <div id="breadcrumb"></div>
+        
+        <main id="content">
+            <div class="loading">Loading...</div>
+        </main>
+        
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <h2>Create Branch?</h2>
+                <p>Branch from turn <strong id="modal-seq"></strong></p>
+                <p class="modal-summary" id="modal-summary"></p>
+                <div class="modal-actions">
+                    <button id="btn-confirm" class="btn-primary">Create Branch (Enter)</button>
+                    <button id="btn-cancel" class="btn-secondary">Cancel (Esc)</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <span class="shortcut"><kbd>/</kbd> search</span>
+            <span class="shortcut"><kbd>j</kbd><kbd>k</kbd> navigate</span>
+            <span class="shortcut"><kbd>Enter</kbd> select</span>
+            <span class="shortcut"><kbd>Esc</kbd> back</span>
+            <span class="shortcut"><kbd>g</kbd><kbd>g</kbd> top</span>
+            <span class="shortcut"><kbd>G</kbd> bottom</span>
+        </footer>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

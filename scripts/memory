@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Persistent memory across conversations.
+
+Usage:
+    memory set <key> <value>    # Store a fact
+    memory get <key>            # Retrieve a fact
+    memory delete <key>         # Delete a fact
+    memory note <text>          # Add a freeform note
+    memory search <query>       # Search facts and notes
+    memory list                 # List all memory
+    memory clear                # Clear all (with confirmation)
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from lib import memory as mem
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Persistent memory')
+    parser.add_argument('action', choices=['set', 'get', 'delete', 'note', 'search', 'list', 'clear'])
+    parser.add_argument('args', nargs='*', help='Key/value or text')
+    args = parser.parse_args()
+    
+    if args.action == 'set':
+        if len(args.args) < 2:
+            print("Usage: memory set <key> <value>", file=sys.stderr)
+            sys.exit(1)
+        key, value = args.args[0], ' '.join(args.args[1:])
+        mem.set_fact(key, value)
+        print(f"{key} = {value}")
+    
+    elif args.action == 'get':
+        if not args.args:
+            print("Usage: memory get <key>", file=sys.stderr)
+            sys.exit(1)
+        value = mem.get_fact(args.args[0])
+        if value:
+            print(value)
+        else:
+            sys.exit(1)
+    
+    elif args.action == 'delete':
+        if not args.args:
+            print("Usage: memory delete <key>", file=sys.stderr)
+            sys.exit(1)
+        if mem.delete_fact(args.args[0]):
+            print(f"Deleted: {args.args[0]}")
+        else:
+            print("Not found", file=sys.stderr)
+            sys.exit(1)
+    
+    elif args.action == 'note':
+        if not args.args:
+            print("Usage: memory note <text>", file=sys.stderr)
+            sys.exit(1)
+        text = ' '.join(args.args)
+        mem.add_note(text)
+        print("Saved.")
+    
+    elif args.action == 'search':
+        if not args.args:
+            print("Usage: memory search <query>", file=sys.stderr)
+            sys.exit(1)
+        results = mem.search(' '.join(args.args))
+        if results['facts']:
+            for k, v in results['facts'].items():
+                print(f"{k} = {v}")
+        if results['notes']:
+            for n in results['notes']:
+                print(f"- {n['text'][:80]}")
+        if not results['facts'] and not results['notes']:
+            print("No matches.")
+    
+    elif args.action == 'list':
+        facts = mem.list_facts()
+        notes = mem.list_notes()
+        if facts:
+            for k, v in facts.items():
+                print(f"{k} = {v}")
+        if notes:
+            print("---")
+            for n in notes:
+                print(f"- {n['text'][:80]}")
+        if not facts and not notes:
+            print("Empty.")
+    
+    elif args.action == 'clear':
+        confirm = input("Clear all memory? [y/N] ")
+        if confirm.lower() == 'y':
+            mem.clear_all()
+            print("Cleared.")
+        else:
+            print("Cancelled.")
+
+
+if __name__ == '__main__':
+    main()
