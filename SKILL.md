@@ -57,7 +57,7 @@ The `--shelley-ui` flag enables the picker to link to the new conversation in Sh
 
 Spawn and manage sub-agents running in separate contexts.
 
-**Models:** Default is `claude-opus-4-20250514`. Use `--model claude-sonnet-4-20250514` for faster/cheaper tasks.
+**Models:** Default is `claude-opus-4.5`. Use `--model claude-sonnet-4.5` for faster/cheaper tasks.
 
 **Output:** Sub-agents are prompted to provide a clear summary in their final message. They may also write files - check the result for mentioned file paths. The `check` and `wait` commands return the sub-agent's final text response.
 
@@ -69,7 +69,7 @@ scripts/spawn start "Analyze the error logs in /var/log/app.log"
 scripts/spawn start "Run the test suite" --wait
 
 # Start with specific model or working directory
-scripts/spawn start "Quick task" --model claude-sonnet-4-20250514
+scripts/spawn start "Quick task" --model claude-sonnet-4.5
 scripts/spawn start "Build feature" --cwd /path/to/project
 
 # List all spawned agents and their status

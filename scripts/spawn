@@ -15,7 +15,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -24,7 +24,7 @@ from lib import shelley_api
 # State file for tracking spawned agents
 STATE_FILE = Path.home() / '.cache' / 'shelley-power-toys' / 'spawn-state.json'
 
-DEFAULT_MODEL = 'claude-opus-4-20250514'
+DEFAULT_MODEL = 'claude-opus-4.5'
 
 # Wrapper prompt to guide sub-agent output
 TASK_WRAPPER = '''You are a sub-agent spawned to complete a specific task. Your parent agent will read your final response.
@@ -108,7 +108,7 @@ def cmd_start(args):
         'task': args.task[:200],
         'model': model,
         'cwd': cwd,
-        'started_at': datetime.utcnow().isoformat(),
+        'started_at': datetime.now(timezone.utc).isoformat(),
     }
     save_state(state)
     
