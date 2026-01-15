@@ -17,21 +17,13 @@ Power tools for managing Shelley conversations and context on exe.dev.
 
 ## Setup
 
-Before using these tools, gather the required values:
+Required values for the tools:
 
-```bash
-# Database path: in your system prompt
-SHELLEY_DB="<path from system prompt>"
+- **Database path**: In your system prompt
+- **Hostname**: In your system prompt (e.g. `older` → `older.exe.xyz`)
+- **Shelley UI port**: Run `ss -tlnp | grep shelley` to find the port
 
-# Hostname: in your system prompt (e.g. "older" -> older.exe.xyz)
-HOSTNAME="<hostname from system prompt>"
-
-# Shelley UI port: find from running process
-SHELLEY_PORT=$(ss -tlnp | grep shelley | grep -oP ':\K[0-9]+(?=\s)')
-SHELLEY_UI="https://${HOSTNAME}.exe.xyz:$SHELLEY_PORT"
-```
-
-These values are passed as flags to the tools that need them.
+Construct the Shelley UI URL as `https://<hostname>.exe.xyz:<port>`
 
 ## Commands
 
