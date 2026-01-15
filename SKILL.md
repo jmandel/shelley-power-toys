@@ -148,3 +148,4 @@ Or add to `~/.config/shelley/AGENTS.md`:
 Available at ~/.shelley-power-toys/scripts/
 See ~/.shelley-power-toys/SKILL.md for usage.
 ```
+
