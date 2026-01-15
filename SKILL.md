@@ -17,17 +17,19 @@ Power tools for managing Shelley conversations and context on exe.dev.
 
 ## Setup
 
-The scripts need to find Shelley's database. Find it from the running process:
+Before using these tools, set up the environment variables:
 
 ```bash
-# Find the Shelley database path
+# Find Shelley's database from the running process
 export SHELLEY_DB=$(ps aux | grep '[s]helley.*-db' | grep -oP '(?<=-db )\S+')
 
-# Verify it exists
-ls -la "$SHELLEY_DB"
+# Find Shelley's port and construct the UI base URL
+SHELLEY_PORT=$(ss -tlnp | grep shelley | grep -oP ':\K[0-9]+(?=\s)')
+export SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
 ```
 
-Default location is `~/.config/shelley/shelley.db` but always check the running process.
+- `SHELLEY_DB` is required by: `branch`, `status`
+- `SHELLEY_UI` is passed to `branch --shelley-ui` for redirect links
 
 ## Commands
 
@@ -42,24 +44,20 @@ Default location is `~/.config/shelley/shelley.db` but always check the running 
 
 Branch creates a new conversation from any point in an existing one.
 
-**Important:** Pass `--shelley-ui` so the picker can link back to Shelley. To find the Shelley port and construct the URL:
+**Requires:** `SHELLEY_DB` env var set (see Setup)
 
 ```bash
-# Find the port Shelley is listening on
-SHELLEY_PORT=$(ss -tlnp | grep shelley | grep -oP ':\K[0-9]+(?=\s)')
-
-# Construct the base URL
-SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
-
 # Launch visual picker for a specific conversation
 scripts/branch -c <conversation_id> --shelley-ui "$SHELLEY_UI"
 
-# Browse all conversations first
+# Browse all conversations first  
 scripts/branch --shelley-ui "$SHELLEY_UI"
 
 # Branch directly without UI (if you know the sequence)
 scripts/branch -c <conversation_id> -s <sequence_number>
 ```
+
+The `--shelley-ui` flag enables the picker to link to the new conversation in Shelley.
 
 **Picker UI Keyboard Shortcuts:**
 - `/` - Focus search
@@ -111,6 +109,8 @@ Memories stored in `~/.config/shelley/power-toys-memory.json`.
 ## status
 
 Status shows conversation health and context usage.
+
+**Requires:** `SHELLEY_DB` env var set (see Setup)
 
 ```bash
 # List recent conversations with usage
