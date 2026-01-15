@@ -129,7 +129,10 @@ def branch_conversation(
     
     if not new_slug:
         base_slug = source.get('slug') or 'conversation'
-        new_slug = f"{base_slug}-branch"
+        # Add timestamp to ensure uniqueness
+        import time
+        ts = int(time.time()) % 100000  # Last 5 digits of timestamp
+        new_slug = f"{base_slug}-branch-{ts}"
     
     with get_connection() as conn:
         # Create new conversation
