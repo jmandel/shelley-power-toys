@@ -55,18 +55,33 @@ The `--shelley-ui` flag enables the picker to link to the new conversation in Sh
 
 ## spawn
 
-Spawn creates a sub-agent to handle a task in a separate context.
+Spawn and manage sub-agents running in separate contexts. Default model is `claude-opus-4-20250514`.
 
 ```bash
-# Wait for result (synchronous)
-scripts/spawn "Analyze the error logs in /var/log/app.log"
+# Start a sub-agent (returns immediately with job ID)
+scripts/spawn start "Analyze the error logs in /var/log/app.log"
 
-# Return immediately (asynchronous)
-scripts/spawn "Build a web scraper" --async
+# Start and wait for completion
+scripts/spawn start "Run the test suite" --wait
 
-# With specific working directory
-scripts/spawn "Run tests" --cwd /path/to/project
+# Start with specific model or working directory
+scripts/spawn start "Quick task" --model claude-sonnet-4-20250514
+scripts/spawn start "Build feature" --cwd /path/to/project
+
+# List all spawned agents and their status
+scripts/spawn list
+scripts/spawn list --json
+
+# Check status / get result of a specific job
+scripts/spawn check <job_id>
+scripts/spawn check <job_id> --json
+
+# Wait for a specific job to complete
+scripts/spawn wait <job_id>
+scripts/spawn wait <job_id> --timeout 300
 ```
+
+Job state is stored in `~/.cache/shelley-power-toys/spawn-state.json`.
 
 ## status
 

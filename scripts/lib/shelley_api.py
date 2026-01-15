@@ -40,7 +40,7 @@ def get_conversation(conversation_id: str) -> dict:
     return _request('GET', f'/conversation/{conversation_id}')
 
 
-def create_conversation(message: str, cwd: str, model: str = 'claude-sonnet-4-20250514') -> str:
+def create_conversation(message: str, cwd: str, model: str = 'claude-opus-4-20250514') -> str:
     """Create a new conversation and return its ID."""
     result = _request('POST', '/conversations/new', {
         'message': message,
@@ -50,7 +50,7 @@ def create_conversation(message: str, cwd: str, model: str = 'claude-sonnet-4-20
     return result['conversation_id']
 
 
-def send_message(conversation_id: str, message: str, model: str = 'claude-sonnet-4-20250514') -> None:
+def send_message(conversation_id: str, message: str, model: str = 'claude-opus-4-20250514') -> None:
     """Send a message to an existing conversation."""
     _request('POST', f'/conversation/{conversation_id}/chat', {
         'message': message,

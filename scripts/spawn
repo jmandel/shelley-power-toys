@@ -1,61 +1,244 @@
 #!/usr/bin/env python3
-"""Spawn a sub-agent to handle a task in a separate context.
+"""Spawn and manage sub-agents.
 
 Usage:
-    spawn "task description"              # Wait for result
-    spawn "task description" --async      # Return immediately
-    spawn "task" --cwd /path/to/dir       # Set working directory
+    spawn start "task description"       # Start a sub-agent, returns job ID
+    spawn start "task" --wait            # Start and wait for completion
+    spawn list                            # List all spawned agents and status
+    spawn check <job_id>                  # Check status / get result
+    spawn wait <job_id>                   # Wait for completion
 """
 
 import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
+from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).parent))
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
 from lib import shelley_api
 
+# State file for tracking spawned agents
+STATE_FILE = Path.home() / '.cache' / 'shelley-power-toys' / 'spawn-state.json'
 
-def main():
-    parser = argparse.ArgumentParser(description='Spawn a sub-agent')
-    parser.add_argument('task', help='Task description for the sub-agent')
-    parser.add_argument('--async', dest='async_mode', action='store_true', help='Return immediately')
-    parser.add_argument('--cwd', help='Working directory for sub-agent')
-    parser.add_argument('--model', default='claude-sonnet-4-20250514', help='Model to use')
-    args = parser.parse_args()
-    
-    cwd = args.cwd or os.environ.get('SHELLEY_CWD', os.getcwd())
-    
-    print(f"Spawning: {args.task[:60]}{'...' if len(args.task) > 60 else ''}", file=sys.stderr)
-    
+DEFAULT_MODEL = 'claude-opus-4-20250514'
+
+
+def load_state() -> dict:
+    """Load spawn state from disk."""
     try:
-        conv_id = shelley_api.create_conversation(args.task, cwd, args.model)
-        print(f"Conversation: {conv_id}", file=sys.stderr)
+        return json.loads(STATE_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {'jobs': {}}
+
+
+def save_state(state: dict) -> None:
+    """Save spawn state to disk."""
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
+def generate_job_id() -> str:
+    """Generate a short job ID."""
+    import random
+    chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    return ''.join(random.choices(chars, k=6))
+
+
+def get_job_status(conv_id: str) -> dict:
+    """Get current status of a spawned conversation."""
+    try:
+        response = shelley_api.get_conversation(conv_id)
+        working = response.get('agent_working', False)
+        messages = response.get('messages', [])
         
-        if args.async_mode:
-            print(json.dumps({
-                'conversation_id': conv_id,
-                'status': 'running',
-                'url': f"http://localhost:9999/c/{conv_id}"
-            }))
-        else:
-            print("Waiting for completion...", file=sys.stderr)
-            response = shelley_api.wait_for_completion(conv_id)
+        # Check if there's a completed agent turn
+        completed = any(
+            m.get('type') == 'agent' and m.get('end_of_turn')
+            for m in messages
+        )
+        
+        if working:
+            return {'status': 'running', 'response': response}
+        elif completed:
             result = shelley_api.extract_final_response(response)
-            
+            return {'status': 'complete', 'result': result, 'response': response}
+        else:
+            return {'status': 'pending', 'response': response}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+
+
+def cmd_start(args):
+    """Start a new sub-agent."""
+    cwd = args.cwd or os.getcwd()
+    model = args.model or DEFAULT_MODEL
+    
+    # Create conversation
+    try:
+        conv_id = shelley_api.create_conversation(args.task, cwd, model)
+    except Exception as e:
+        print(f"Error starting agent: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Generate job ID and save state
+    job_id = generate_job_id()
+    state = load_state()
+    state['jobs'][job_id] = {
+        'conversation_id': conv_id,
+        'task': args.task[:200],
+        'model': model,
+        'cwd': cwd,
+        'started_at': datetime.utcnow().isoformat(),
+    }
+    save_state(state)
+    
+    print(f"Started job {job_id} (conversation {conv_id})", file=sys.stderr)
+    
+    if args.wait:
+        # Wait for completion
+        return cmd_wait_impl(job_id, conv_id)
+    else:
+        # Return job info
+        print(json.dumps({
+            'job_id': job_id,
+            'conversation_id': conv_id,
+            'status': 'started'
+        }))
+
+
+def cmd_list(args):
+    """List all spawned agents."""
+    state = load_state()
+    jobs = state.get('jobs', {})
+    
+    if not jobs:
+        print("No spawned agents.")
+        return
+    
+    results = []
+    for job_id, job in jobs.items():
+        status_info = get_job_status(job['conversation_id'])
+        results.append({
+            'job_id': job_id,
+            'conversation_id': job['conversation_id'],
+            'task': job['task'][:60] + ('...' if len(job['task']) > 60 else ''),
+            'status': status_info['status'],
+            'started_at': job.get('started_at', ''),
+        })
+    
+    if args.json:
+        print(json.dumps(results, indent=2))
+    else:
+        for r in results:
+            status_icon = {'running': '⏳', 'complete': '✓', 'error': '✗', 'pending': '…'}.get(r['status'], '?')
+            print(f"{status_icon} {r['job_id']}  {r['status']:<10}  {r['task']}")
+
+
+def cmd_check(args):
+    """Check status of a specific job."""
+    state = load_state()
+    job = state.get('jobs', {}).get(args.job_id)
+    
+    if not job:
+        print(f"Job {args.job_id} not found", file=sys.stderr)
+        sys.exit(1)
+    
+    status_info = get_job_status(job['conversation_id'])
+    
+    if args.json:
+        print(json.dumps({
+            'job_id': args.job_id,
+            'conversation_id': job['conversation_id'],
+            'task': job['task'],
+            'status': status_info['status'],
+            'result': status_info.get('result'),
+        }, indent=2))
+    else:
+        print(f"Job: {args.job_id}")
+        print(f"Status: {status_info['status']}")
+        print(f"Task: {job['task'][:100]}")
+        if status_info['status'] == 'complete' and status_info.get('result'):
+            print(f"\nResult:\n{status_info['result']}")
+        elif status_info['status'] == 'error':
+            print(f"Error: {status_info.get('error')}")
+
+
+def cmd_wait_impl(job_id: str, conv_id: str, timeout: int = 600):
+    """Wait for a job to complete (implementation)."""
+    print(f"Waiting for job {job_id}...", file=sys.stderr)
+    
+    start = time.time()
+    while time.time() - start < timeout:
+        status_info = get_job_status(conv_id)
+        
+        if status_info['status'] == 'complete':
+            result = status_info.get('result')
             if result:
                 print(result)
             else:
                 print(json.dumps({
-                    'conversation_id': conv_id,
+                    'job_id': job_id,
                     'status': 'complete',
                     'result': None
                 }))
+            return
+        elif status_info['status'] == 'error':
+            print(f"Error: {status_info.get('error')}", file=sys.stderr)
+            sys.exit(1)
+        
+        time.sleep(2)
     
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+    print(f"Timeout waiting for job {job_id}", file=sys.stderr)
+    sys.exit(1)
+
+
+def cmd_wait(args):
+    """Wait for a job to complete."""
+    state = load_state()
+    job = state.get('jobs', {}).get(args.job_id)
+    
+    if not job:
+        print(f"Job {args.job_id} not found", file=sys.stderr)
         sys.exit(1)
+    
+    cmd_wait_impl(args.job_id, job['conversation_id'], args.timeout)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Spawn and manage sub-agents')
+    subparsers = parser.add_subparsers(dest='command', required=True)
+    
+    # start
+    p_start = subparsers.add_parser('start', help='Start a new sub-agent')
+    p_start.add_argument('task', help='Task description')
+    p_start.add_argument('--wait', action='store_true', help='Wait for completion')
+    p_start.add_argument('--cwd', help='Working directory')
+    p_start.add_argument('--model', help=f'Model (default: {DEFAULT_MODEL})')
+    p_start.set_defaults(func=cmd_start)
+    
+    # list
+    p_list = subparsers.add_parser('list', help='List spawned agents')
+    p_list.add_argument('--json', action='store_true', help='JSON output')
+    p_list.set_defaults(func=cmd_list)
+    
+    # check
+    p_check = subparsers.add_parser('check', help='Check job status')
+    p_check.add_argument('job_id', help='Job ID')
+    p_check.add_argument('--json', action='store_true', help='JSON output')
+    p_check.set_defaults(func=cmd_check)
+    
+    # wait
+    p_wait = subparsers.add_parser('wait', help='Wait for job completion')
+    p_wait.add_argument('job_id', help='Job ID')
+    p_wait.add_argument('--timeout', type=int, default=600, help='Timeout in seconds')
+    p_wait.set_defaults(func=cmd_wait)
+    
+    args = parser.parse_args()
+    args.func(args)
 
 
 if __name__ == '__main__':
