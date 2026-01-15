@@ -28,11 +28,14 @@ Power tools for managing Shelley conversations and context on exe.dev.
 
 Branch creates a new conversation from any point in an existing one.
 
-**Important:** Pass `--shelley-ui` so the picker can link back to Shelley. Construct the URL from the VM hostname and Shelley's port (9999):
+**Important:** Pass `--shelley-ui` so the picker can link back to Shelley. To find the Shelley port and construct the URL:
 
 ```bash
-# Get the base URL for Shelley UI
-SHELLEY_UI="https://$(hostname).exe.xyz:9999"
+# Find the port Shelley is listening on
+SHELLEY_PORT=$(ss -tlnp | grep shelley | grep -oP ':\K[0-9]+(?=\s)')
+
+# Construct the base URL
+SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
 
 # Launch visual picker for a specific conversation
 scripts/branch -c <conversation_id> --shelley-ui "$SHELLEY_UI"
