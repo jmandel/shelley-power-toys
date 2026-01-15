@@ -1,0 +1,1 @@
+"""Shelley Power Toys library."""

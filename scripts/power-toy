@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""Shelley Power Toys - single entry point for all power tools.
+
+Usage:
+    power-toy branch [--conversation ID] [--pick]
+    power-toy spawn "task" [--async] [--cwd DIR]
+    power-toy checkpoint save|list|restore|delete <name>
+    power-toy memory set|get|delete|note|search|list [args]
+    power-toy status [--conversation ID]
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+# Add lib to path
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+
+from lib import db, memory, checkpoint, shelley_api
+
+
+def get_current_conversation_id() -> str:
+    """Get the current conversation ID from environment."""
+    conv_id = os.environ.get('SHELLEY_CONVERSATION_ID')
+    if not conv_id:
+        print("Error: No current conversation. Set SHELLEY_CONVERSATION_ID or use --conversation.", file=sys.stderr)
+        sys.exit(1)
+    return conv_id
+
+
+def cmd_branch(args):
+    """Handle branch command."""
+    # Import here to avoid loading UI dependencies unless needed
+    from ui.server import run_branch_picker
+    
+    conversation_id = args.conversation
+    if not conversation_id and not args.pick:
+        conversation_id = os.environ.get('SHELLEY_CONVERSATION_ID')
+    
+    # If still no conversation and not picking, show picker
+    pick = args.pick or not conversation_id
+    
+    # Run the picker server (this blocks and serves until Ctrl+C)
+    # The URL is printed to stdout for the calling script to capture
+    run_branch_picker(
+        conversation_id=conversation_id,
+        pick_conversation=pick
+    )
+
+
+def cmd_spawn(args):
+    """Handle spawn command."""
+    task = args.task
+    cwd = args.cwd or os.environ.get('SHELLEY_CWD', os.getcwd())
+    
+    # Create the sub-agent conversation
+    print(f"Spawning sub-agent for: {task[:50]}{'...' if len(task) > 50 else ''}", file=sys.stderr)
+    
+    try:
+        conv_id = shelley_api.create_conversation(task, cwd)
+        print(f"Created conversation: {conv_id}", file=sys.stderr)
+        
+        if args.async_mode:
+            # Just return the conversation ID
+            print(json.dumps({
+                'conversation_id': conv_id,
+                'status': 'running',
+                'url': f"http://localhost:9999/c/{conv_id}"
+            }))
+        else:
+            # Wait for completion and return result
+            print("Waiting for completion...", file=sys.stderr)
+            response = shelley_api.wait_for_completion(conv_id)
+            result = shelley_api.extract_final_response(response)
+            
+            if result:
+                print(result)
+            else:
+                print("(No text response from sub-agent)", file=sys.stderr)
+                print(json.dumps({
+                    'conversation_id': conv_id,
+                    'status': 'complete',
+                    'result': None
+                }))
+    
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_checkpoint(args):
+    """Handle checkpoint command."""
+    action = args.action
+    
+    if action == 'save':
+        if not args.name:
+            print("Error: checkpoint save requires a name", file=sys.stderr)
+            sys.exit(1)
+        
+        conv_id = args.conversation or get_current_conversation_id()
+        
+        try:
+            cp = checkpoint.save_checkpoint(conv_id, args.name)
+            print(f"Checkpoint '{args.name}' saved at sequence {cp['sequence_id']}")
+            print(f"  {cp['summary']}")
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    elif action == 'list':
+        conv_id = args.conversation or os.environ.get('SHELLEY_CONVERSATION_ID')
+        checkpoints = checkpoint.list_checkpoints(conv_id)
+        
+        if not checkpoints:
+            print("No checkpoints found.")
+        else:
+            for cp in checkpoints:
+                print(f"  [{cp['name']}] seq #{cp['sequence_id']} - {cp['summary'][:50]}")
+                print(f"    Conversation: {cp['conversation_id']} ({cp.get('slug', 'untitled')})")
+    
+    elif action == 'restore':
+        if not args.name:
+            print("Error: checkpoint restore requires a name", file=sys.stderr)
+            sys.exit(1)
+        
+        conv_id = args.conversation or get_current_conversation_id()
+        
+        try:
+            new_id = checkpoint.restore_checkpoint(conv_id, args.name)
+            print(f"Restored checkpoint '{args.name}' to new conversation: {new_id}")
+            print(f"Open at: http://localhost:9999/c/{new_id}")
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    elif action == 'delete':
+        if not args.name:
+            print("Error: checkpoint delete requires a name", file=sys.stderr)
+            sys.exit(1)
+        
+        conv_id = args.conversation or get_current_conversation_id()
+        
+        if checkpoint.delete_checkpoint(conv_id, args.name):
+            print(f"Deleted checkpoint '{args.name}'")
+        else:
+            print(f"Checkpoint '{args.name}' not found", file=sys.stderr)
+            sys.exit(1)
+    
+    else:
+        print(f"Unknown checkpoint action: {action}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_memory(args):
+    """Handle memory command."""
+    action = args.action
+    
+    if action == 'set':
+        if not args.key or not args.value:
+            print("Error: memory set requires key and value", file=sys.stderr)
+            sys.exit(1)
+        memory.set_fact(args.key, args.value)
+        print(f"Saved: {args.key} = {args.value}")
+    
+    elif action == 'get':
+        if not args.key:
+            print("Error: memory get requires a key", file=sys.stderr)
+            sys.exit(1)
+        value = memory.get_fact(args.key)
+        if value is not None:
+            print(value)
+        else:
+            print(f"Key '{args.key}' not found", file=sys.stderr)
+            sys.exit(1)
+    
+    elif action == 'delete':
+        if not args.key:
+            print("Error: memory delete requires a key", file=sys.stderr)
+            sys.exit(1)
+        if memory.delete_fact(args.key):
+            print(f"Deleted: {args.key}")
+        else:
+            print(f"Key '{args.key}' not found", file=sys.stderr)
+            sys.exit(1)
+    
+    elif action == 'note':
+        # Note text can be in key position (first positional) or value position
+        text = args.key or args.value
+        if not text:
+            print("Error: memory note requires text", file=sys.stderr)
+            sys.exit(1)
+        memory.add_note(text)
+        print("Note saved.")
+    
+    elif action == 'search':
+        if not args.key:
+            print("Error: memory search requires a query", file=sys.stderr)
+            sys.exit(1)
+        results = memory.search(args.key)
+        
+        if results['facts']:
+            print("Facts:")
+            for k, v in results['facts'].items():
+                print(f"  {k} = {v}")
+        
+        if results['notes']:
+            print("Notes:")
+            for note in results['notes']:
+                print(f"  - {note['text'][:80]}{'...' if len(note['text']) > 80 else ''}")
+        
+        if not results['facts'] and not results['notes']:
+            print("No matches found.")
+    
+    elif action == 'list':
+        facts = memory.list_facts()
+        notes = memory.list_notes()
+        
+        if facts:
+            print("Facts:")
+            for k, v in facts.items():
+                print(f"  {k} = {v}")
+        
+        if notes:
+            print("\nNotes:")
+            for note in notes:
+                print(f"  - {note['text'][:80]}{'...' if len(note['text']) > 80 else ''}")
+        
+        if not facts and not notes:
+            print("Memory is empty.")
+    
+    else:
+        print(f"Unknown memory action: {action}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_status(args):
+    """Handle status command."""
+    conv_id = args.conversation or os.environ.get('SHELLEY_CONVERSATION_ID')
+    
+    if not conv_id:
+        # Show summary of recent conversations
+        conversations = db.list_conversations(10)
+        print("Recent conversations:")
+        for conv in conversations:
+            tokens = db.estimate_tokens(conv['conversation_id'])
+            pct = min(100, int(tokens['total_tokens'] / 2000))  # Rough estimate vs 200k context
+            bar = '█' * (pct // 10) + '░' * (10 - pct // 10)
+            print(f"  {conv['conversation_id']} ({conv.get('slug', 'untitled')[:30]})")
+            print(f"    Tokens: ~{tokens['total_tokens']:,} [{bar}] {pct}%")
+        return
+    
+    # Show detailed status for specific conversation
+    conv = db.get_conversation(conv_id)
+    if not conv:
+        print(f"Conversation {conv_id} not found", file=sys.stderr)
+        sys.exit(1)
+    
+    messages = db.get_messages(conv_id)
+    tokens = db.estimate_tokens(conv_id)
+    
+    user_turns = sum(1 for m in messages if m['type'] == 'user')
+    agent_turns = sum(1 for m in messages if m['type'] == 'agent')
+    
+    # Estimate context usage (200k context window)
+    context_limit = 200000
+    pct = min(100, int(tokens['total_tokens'] / context_limit * 100))
+    bar = '█' * (pct // 10) + '░' * (10 - pct // 10)
+    
+    print(f"Conversation: {conv_id} ({conv.get('slug', 'untitled')})")
+    print(f"Turns: {len(messages)} ({user_turns} user, {agent_turns} agent)")
+    print(f"Estimated tokens: ~{tokens['total_tokens']:,}" + (" (rough estimate)" if tokens.get('estimated') else ""))
+    print(f"Context usage: [{bar}] {pct}%")
+    
+    remaining = context_limit - tokens['total_tokens']
+    if pct < 50:
+        print(f"Status: ✓ Healthy (room for ~{remaining:,} more tokens)")
+    elif pct < 80:
+        print(f"Status: ⚠ Getting full (room for ~{remaining:,} more tokens)")
+    else:
+        print(f"Status: ⚠ Nearly full! Consider branching or spawning sub-agents.")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Shelley Power Toys',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  power-toy branch                    # Branch current conversation (UI picker)
+  power-toy branch -c cABC123         # Branch specific conversation
+  power-toy spawn "analyze logs"      # Spawn sub-agent, wait for result
+  power-toy spawn "build app" --async # Spawn and return immediately
+  power-toy checkpoint save "v1"      # Save checkpoint named "v1"
+  power-toy checkpoint restore "v1"   # Branch from checkpoint
+  power-toy memory set key value      # Store a fact
+  power-toy memory note "some note"   # Store a note
+  power-toy status                    # Show context usage
+'''
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Command')
+    
+    # Branch command
+    branch_parser = subparsers.add_parser('branch', help='Branch a conversation')
+    branch_parser.add_argument('-c', '--conversation', help='Conversation ID to branch')
+    branch_parser.add_argument('--pick', action='store_true', help='Show conversation picker')
+    
+    # Spawn command
+    spawn_parser = subparsers.add_parser('spawn', help='Spawn a sub-agent')
+    spawn_parser.add_argument('task', help='Task description for the sub-agent')
+    spawn_parser.add_argument('--async', dest='async_mode', action='store_true', help='Return immediately')
+    spawn_parser.add_argument('--cwd', help='Working directory for sub-agent')
+    
+    # Checkpoint command
+    checkpoint_parser = subparsers.add_parser('checkpoint', help='Manage checkpoints')
+    checkpoint_parser.add_argument('action', choices=['save', 'list', 'restore', 'delete'], help='Action')
+    checkpoint_parser.add_argument('name', nargs='?', help='Checkpoint name')
+    checkpoint_parser.add_argument('-c', '--conversation', help='Conversation ID')
+    
+    # Memory command
+    memory_parser = subparsers.add_parser('memory', help='Persistent memory')
+    memory_parser.add_argument('action', choices=['set', 'get', 'delete', 'note', 'search', 'list'], help='Action')
+    memory_parser.add_argument('key', nargs='?', help='Key or search query')
+    memory_parser.add_argument('value', nargs='?', help='Value or note text')
+    
+    # Status command
+    status_parser = subparsers.add_parser('status', help='Show conversation status')
+    status_parser.add_argument('-c', '--conversation', help='Conversation ID')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    if args.command == 'branch':
+        cmd_branch(args)
+    elif args.command == 'spawn':
+        cmd_spawn(args)
+    elif args.command == 'checkpoint':
+        cmd_checkpoint(args)
+    elif args.command == 'memory':
+        cmd_memory(args)
+    elif args.command == 'status':
+        cmd_status(args)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
