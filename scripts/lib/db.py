@@ -8,12 +8,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-SHELLEY_DB = os.environ.get('SHELLEY_DB', str(Path.home() / '.config/shelley/shelley.db'))
+# Database path - can be set via set_db_path() or SHELLEY_DB env var
+_db_path: Optional[str] = None
+
+
+def set_db_path(path: str) -> None:
+    """Set the database path explicitly."""
+    global _db_path
+    _db_path = path
+
+
+def get_db_path() -> str:
+    """Get the database path."""
+    if _db_path:
+        return _db_path
+    return os.environ.get('SHELLEY_DB', str(Path.home() / '.config/shelley/shelley.db'))
 
 
 def get_connection() -> sqlite3.Connection:
     """Get a connection to the Shelley database."""
-    conn = sqlite3.connect(SHELLEY_DB)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 

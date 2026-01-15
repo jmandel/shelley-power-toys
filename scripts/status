@@ -2,9 +2,9 @@
 """Show conversation status and context window usage.
 
 Usage:
-    status                # List recent conversations
-    status -c <id>        # Show specific conversation
-    status --json         # Output as JSON
+    status --db <path>                # List recent conversations
+    status --db <path> -c <id>        # Show specific conversation
+    status --db <path> --json         # Output as JSON
 """
 
 import argparse
@@ -19,10 +19,14 @@ from lib import db
 
 def main():
     parser = argparse.ArgumentParser(description='Conversation status')
+    parser.add_argument('--db', required=True, help='Path to Shelley database')
     parser.add_argument('-c', '--conversation', help='Conversation ID')
     parser.add_argument('--json', action='store_true', help='JSON output')
     parser.add_argument('-n', '--limit', type=int, default=10, help='Number of conversations')
     args = parser.parse_args()
+    
+    # Set database path
+    db.set_db_path(args.db)
     
     conv_id = args.conversation
     context_limit = 200000

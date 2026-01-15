@@ -2,10 +2,9 @@
 """Branch a conversation from a specific point.
 
 Usage:
-    branch                    # Branch current conversation (launches picker)
-    branch -c <id>            # Branch specific conversation
-    branch --pick             # Browse all conversations first
-    branch -c <id> -s <seq>   # Branch directly without UI
+    branch --db <path> --shelley-ui <url>           # Browse all conversations
+    branch --db <path> --shelley-ui <url> -c <id>   # Branch specific conversation
+    branch --db <path> -c <id> -s <seq>             # Branch directly without UI
 """
 
 import argparse
@@ -22,12 +21,17 @@ from lib import db
 
 def main():
     parser = argparse.ArgumentParser(description='Branch a conversation')
+    parser.add_argument('--db', required=True, help='Path to Shelley database')
+    parser.add_argument('--shelley-ui', help='Shelley UI base URL (e.g. https://host.exe.xyz:9999)')
     parser.add_argument('-c', '--conversation', help='Conversation ID to branch')
     parser.add_argument('-s', '--sequence', type=int, help='Branch at this sequence (skip UI)')
     parser.add_argument('--pick', action='store_true', help='Show conversation picker')
     parser.add_argument('--port', type=int, default=0, help='Port for UI server (0=auto)')
     parser.add_argument('--foreground', action='store_true', help='Run server in foreground')
     args = parser.parse_args()
+    
+    # Set database path
+    db.set_db_path(args.db)
     
     # If sequence provided, branch directly without UI
     if args.sequence is not None:
@@ -47,7 +51,11 @@ def main():
     
     # Build server command
     server_script = SCRIPT_DIR / 'ui' / 'server.py'
-    cmd = [sys.executable, str(server_script)]
+    cmd = [sys.executable, str(server_script), '--db', args.db]
+    
+    # Pass shelley-ui if provided
+    if args.shelley_ui:
+        cmd.extend(['--shelley-ui', args.shelley_ui])
     
     # Always start with conversation picker (two-stage flow)
     # If -c is provided, it pre-selects that conversation but still shows picker

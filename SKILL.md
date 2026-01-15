@@ -17,19 +17,18 @@ Power tools for managing Shelley conversations and context on exe.dev.
 
 ## Setup
 
-Before using these tools, set up the environment variables:
+Before using these tools, find Shelley's database and UI URL:
 
 ```bash
 # Find Shelley's database from the running process
-export SHELLEY_DB=$(ps aux | grep '[s]helley.*-db' | grep -oP '(?<=-db )\S+')
+SHELLEY_DB=$(ps aux | grep '[s]helley.*-db' | grep -oP '(?<=-db )\S+')
 
 # Find Shelley's port and construct the UI base URL
 SHELLEY_PORT=$(ss -tlnp | grep shelley | grep -oP ':\K[0-9]+(?=\s)')
-export SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
+SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
 ```
 
-- `SHELLEY_DB` is required by: `branch`, `status`
-- `SHELLEY_UI` is passed to `branch --shelley-ui` for redirect links
+These values are passed as flags to the tools that need them.
 
 ## Commands
 
@@ -44,17 +43,15 @@ export SHELLEY_UI="https://$(hostname).exe.xyz:$SHELLEY_PORT"
 
 Branch creates a new conversation from any point in an existing one.
 
-**Requires:** `SHELLEY_DB` env var set (see Setup)
-
 ```bash
 # Launch visual picker for a specific conversation
-scripts/branch -c <conversation_id> --shelley-ui "$SHELLEY_UI"
+scripts/branch --db "$SHELLEY_DB" --shelley-ui "$SHELLEY_UI" -c <conversation_id>
 
 # Browse all conversations first  
-scripts/branch --shelley-ui "$SHELLEY_UI"
+scripts/branch --db "$SHELLEY_DB" --shelley-ui "$SHELLEY_UI"
 
 # Branch directly without UI (if you know the sequence)
-scripts/branch -c <conversation_id> -s <sequence_number>
+scripts/branch --db "$SHELLEY_DB" -c <conversation_id> -s <sequence_number>
 ```
 
 The `--shelley-ui` flag enables the picker to link to the new conversation in Shelley.
@@ -110,15 +107,13 @@ Memories stored in `~/.config/shelley/power-toys-memory.json`.
 
 Status shows conversation health and context usage.
 
-**Requires:** `SHELLEY_DB` env var set (see Setup)
-
 ```bash
 # List recent conversations with usage
-scripts/status
+scripts/status --db "$SHELLEY_DB"
 
 # Detailed view of specific conversation
-scripts/status -c <conversation_id>
+scripts/status --db "$SHELLEY_DB" -c <conversation_id>
 
 # JSON output
-scripts/status --json
+scripts/status --db "$SHELLEY_DB" --json
 ```

@@ -221,12 +221,17 @@ def run_branch_picker(
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Branch picker UI server')
+    parser.add_argument('--db', required=True, help='Path to Shelley database')
+    parser.add_argument('--shelley-ui', help='Shelley UI base URL')
     parser.add_argument('-c', '--conversation', help='Conversation ID to branch')
     parser.add_argument('--pick', action='store_true', help='Show conversation picker first')
     parser.add_argument('--port', type=int, help='Port to listen on')
-    parser.add_argument('--shelley-ui', help='Shelley UI base URL')
     
     args = parser.parse_args()
+    
+    # Set database path before running
+    db.set_db_path(args.db)
+    
     run_branch_picker(
         conversation_id=args.conversation,
         pick_conversation=args.pick,
