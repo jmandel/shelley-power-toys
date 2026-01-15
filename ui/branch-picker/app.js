@@ -27,15 +27,11 @@
     
     // Initialize
     function init() {
-        // Check URL for conversation ID
+        // Always start with conversation list
+        // URL param ?c=xxx pre-highlights that conversation but doesn't skip
         const params = new URLSearchParams(location.search);
-        const convId = params.get('c') || params.get('conversation');
-        
-        if (convId) {
-            loadTurns(convId);
-        } else {
-            loadConversations();
-        }
+        state.preselectedConversation = params.get('c') || params.get('conversation');
+        loadConversations();
         
         // Event listeners
         search.addEventListener('input', onSearch);
@@ -58,10 +54,21 @@
             state.conversations = await resp.json();
             state.filtered = state.conversations;
             state.view = 'conversations';
-            state.selectedIndex = 0;
             state.query = '';
             search.value = '';
+            
+            // Pre-select conversation if specified in URL
+            if (state.preselectedConversation) {
+                const idx = state.conversations.findIndex(
+                    c => c.conversation_id === state.preselectedConversation
+                );
+                state.selectedIndex = idx >= 0 ? idx : 0;
+            } else {
+                state.selectedIndex = 0;
+            }
+            
             render();
+            scrollToSelected();
         } catch (e) {
             content.innerHTML = '<div class="loading">Error loading conversations</div>';
         }

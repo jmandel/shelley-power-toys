@@ -49,13 +49,10 @@ def main():
     server_script = SCRIPT_DIR / 'ui' / 'server.py'
     cmd = [sys.executable, str(server_script)]
     
-    conversation_id = args.conversation
-    
-    if conversation_id:
-        cmd.extend(['-c', conversation_id])
-    else:
-        # No conversation specified, show picker to choose one
-        cmd.append('--pick')
+    # Always start with conversation picker (two-stage flow)
+    # If -c is provided, it pre-selects that conversation but still shows picker
+    if args.conversation:
+        cmd.extend(['-c', args.conversation])
     if args.port:
         cmd.extend(['--port', str(args.port)])
     

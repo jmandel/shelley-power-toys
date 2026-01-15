@@ -47,44 +47,53 @@ def get_messages(conversation_id: str, max_sequence: Optional[int] = None) -> Li
 def get_message_summary(msg: Dict[str, Any]) -> str:
     """Get a short summary of a message for display."""
     msg_type = msg.get('type', 'unknown')
+    llm_data = msg.get('llm_data')
+    
+    if not llm_data:
+        return f"{msg_type}: (empty)"
+    
+    try:
+        data = json.loads(llm_data)
+    except json.JSONDecodeError:
+        return f"{msg_type}: (parse error)"
+    
+    contents = data.get('Content', [])
     
     if msg_type == 'user':
-        # Try to extract user text from llm_data
-        llm_data = msg.get('llm_data')
-        if llm_data:
-            try:
-                data = json.loads(llm_data)
-                for content in data.get('Content', []):
-                    if content.get('Type') == 2 and content.get('Text'):
-                        text = content['Text'][:100]
-                        return f"User: {text}{'...' if len(content['Text']) > 100 else ''}"
-            except json.JSONDecodeError:
-                pass
-        return "User: (message)"
+        for content in contents:
+            # Type 2 = text
+            if content.get('Type') == 2 and content.get('Text'):
+                text = content['Text'][:150].replace('\n', ' ')
+                return text + ('...' if len(content['Text']) > 150 else '')
+            # Type 6 = tool result
+            if content.get('Type') == 6:
+                tool_results = content.get('ToolResult', [])
+                for tr in tool_results:
+                    if tr.get('Type') == 2 and tr.get('Text'):
+                        text = tr['Text'][:100].replace('\n', ' ')
+                        return f"[tool result] {text}{'...' if len(tr['Text']) > 100 else ''}"
+                return "[tool result]"
+        return "(user message)"
     
     elif msg_type == 'agent':
-        llm_data = msg.get('llm_data')
-        if llm_data:
-            try:
-                data = json.loads(llm_data)
-                for content in data.get('Content', []):
-                    if content.get('Type') == 2 and content.get('Text'):
-                        text = content['Text'][:100]
-                        return f"Agent: {text}{'...' if len(content['Text']) > 100 else ''}"
-                    # Check for tool use
-                    if content.get('Type') == 5 and content.get('ToolName'):
-                        return f"Agent: [using {content['ToolName']}]"
-            except json.JSONDecodeError:
-                pass
-        return "Agent: (response)"
+        for content in contents:
+            # Type 2 = text (prefer this)
+            if content.get('Type') == 2 and content.get('Text'):
+                text = content['Text'][:150].replace('\n', ' ')
+                return text + ('...' if len(content['Text']) > 150 else '')
+        # Fall back to tool use
+        for content in contents:
+            if content.get('Type') == 5 and content.get('ToolName'):
+                return f"[{content['ToolName']}]"
+        return "(agent response)"
     
     elif msg_type == 'tool':
-        return "Tool: (result)"
+        return "[tool]"
     
     elif msg_type == 'system':
-        return "System: (prompt)"
+        return "[system prompt]"
     
-    return f"{msg_type}: (message)"
+    return f"{msg_type}"
 
 
 def generate_conversation_id() -> str:
