@@ -168,10 +168,9 @@ def run_branch_picker(
     hostname = get_hostname()
     
     if not shelley_ui_base:
-        if 'exe.xyz' in hostname:
-            shelley_ui_base = f"https://{hostname}:9999"
-        else:
-            shelley_ui_base = "http://localhost:9999"
+        # Use relative path - the user will open this from wherever they access Shelley
+        # This avoids issues with proxy/port accessibility
+        shelley_ui_base = ""
     
     BranchPickerHandler.conversation_id = conversation_id
     BranchPickerHandler.pick_conversation = pick_conversation

@@ -307,11 +307,13 @@
             const data = await resp.json();
             
             if (data.success) {
+                // Build the Shelley URL - use port 9999 on same host
+                var shelleyUrl = window.location.protocol + '//' + window.location.hostname + ':9999/c/' + data.new_conversation_id;
                 modalContent.innerHTML = 
                     '<div class="modal-success">' +
                     '<h3>✓ Branch Created</h3>' +
                     '<p>New conversation: <code>' + data.new_conversation_id + '</code></p>' +
-                    '<p><a href="' + data.redirect_url + '">Open new conversation →</a></p>' +
+                    '<p><a href="' + shelleyUrl + '" target="_blank">Open in Shelley →</a></p>' +
                     '</div>';
             } else {
                 throw new Error(data.error || 'Unknown error');
