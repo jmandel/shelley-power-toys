@@ -26,6 +26,19 @@ STATE_FILE = Path.home() / '.cache' / 'shelley-power-toys' / 'spawn-state.json'
 
 DEFAULT_MODEL = 'claude-opus-4-20250514'
 
+# Wrapper prompt to guide sub-agent output
+TASK_WRAPPER = '''You are a sub-agent spawned to complete a specific task. Your parent agent will read your final response.
+
+## Task
+{task}
+
+## Instructions
+1. Complete the task above
+2. You may create/modify files as needed - mention any files you create so the parent knows where to find them
+3. When done, provide a clear summary of what you accomplished in your final message
+4. If the task produces data/results, include them directly in your final response OR write to a file and state the path
+'''
+
 
 def load_state() -> dict:
     """Load spawn state from disk."""
@@ -77,9 +90,12 @@ def cmd_start(args):
     cwd = args.cwd or os.getcwd()
     model = args.model or DEFAULT_MODEL
     
+    # Wrap task with guidance prompt
+    wrapped_task = TASK_WRAPPER.format(task=args.task)
+    
     # Create conversation
     try:
-        conv_id = shelley_api.create_conversation(args.task, cwd, model)
+        conv_id = shelley_api.create_conversation(wrapped_task, cwd, model)
     except Exception as e:
         print(f"Error starting agent: {e}", file=sys.stderr)
         sys.exit(1)

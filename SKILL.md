@@ -55,7 +55,11 @@ The `--shelley-ui` flag enables the picker to link to the new conversation in Sh
 
 ## spawn
 
-Spawn and manage sub-agents running in separate contexts. Default model is `claude-opus-4-20250514`.
+Spawn and manage sub-agents running in separate contexts.
+
+**Models:** Default is `claude-opus-4-20250514`. Use `--model claude-sonnet-4-20250514` for faster/cheaper tasks.
+
+**Output:** Sub-agents are prompted to provide a clear summary in their final message. They may also write files - check the result for mentioned file paths. The `check` and `wait` commands return the sub-agent's final text response.
 
 ```bash
 # Start a sub-agent (returns immediately with job ID)
