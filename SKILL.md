@@ -57,7 +57,7 @@ The `--shelley-ui` flag enables the picker to link to the new conversation in Sh
 
 Spawn and manage sub-agents running in separate contexts.
 
-**Models:** Default is `claude-opus-4.5`. Use `--model claude-sonnet-4.5` for faster/cheaper tasks.
+**Models:** Use the default (`claude-opus-4.5`) unless the user specifies otherwise. Available: `claude-opus-4.5`, `claude-sonnet-4.5` (faster/cheaper).
 
 **Output:** Sub-agents are prompted to provide a clear summary in their final message. They may also write files - check the result for mentioned file paths. The `check` and `wait` commands return the sub-agent's final text response.
 
