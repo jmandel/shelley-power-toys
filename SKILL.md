@@ -76,9 +76,12 @@ scripts/spawn list --json
 scripts/spawn check <job_id>
 scripts/spawn check <job_id> --json
 
-# Wait for a specific job to complete
+# Wait for specific jobs to complete
 scripts/spawn wait <job_id>
-scripts/spawn wait <job_id> --timeout 300
+scripts/spawn wait <job_id1> <job_id2> <job_id3>   # wait for all listed
+scripts/spawn wait <job_id1> <job_id2> --any       # return when first completes
+scripts/spawn wait --all                           # wait for all running jobs
+scripts/spawn wait --all --timeout 300
 ```
 
 Job state is stored in `~/.cache/shelley-power-toys/spawn-state.json`.
