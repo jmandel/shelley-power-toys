@@ -27,11 +27,16 @@
     
     // Initialize
     function init() {
-        // Always start with conversation list
-        // URL param ?c=xxx pre-highlights that conversation but doesn't skip
         const params = new URLSearchParams(location.search);
-        state.preselectedConversation = params.get('c') || params.get('conversation');
-        loadConversations();
+        const convId = params.get('c') || params.get('conversation');
+        
+        // If conversation specified, go directly to branch point picker
+        // User can still go back to conversation list via breadcrumb/Esc
+        if (convId) {
+            loadTurns(convId);
+        } else {
+            loadConversations();
+        }
         
         // Event listeners
         search.addEventListener('input', onSearch);
