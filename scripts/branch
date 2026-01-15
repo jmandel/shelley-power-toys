@@ -31,9 +31,9 @@ def main():
     
     # If sequence provided, branch directly without UI
     if args.sequence is not None:
-        conv_id = args.conversation or os.environ.get('SHELLEY_CONVERSATION_ID')
+        conv_id = args.conversation
         if not conv_id:
-            print("Error: No conversation specified. Use -c or set SHELLEY_CONVERSATION_ID", file=sys.stderr)
+            print("Error: No conversation specified. Use -c <conversation_id>", file=sys.stderr)
             sys.exit(1)
         
         try:
@@ -50,12 +50,11 @@ def main():
     cmd = [sys.executable, str(server_script)]
     
     conversation_id = args.conversation
-    if not conversation_id and not args.pick:
-        conversation_id = os.environ.get('SHELLEY_CONVERSATION_ID')
     
     if conversation_id:
         cmd.extend(['-c', conversation_id])
-    if args.pick or not conversation_id:
+    else:
+        # No conversation specified, show picker to choose one
         cmd.append('--pick')
     if args.port:
         cmd.extend(['--port', str(args.port)])

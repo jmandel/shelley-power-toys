@@ -30,9 +30,8 @@
     <a href="shelley-power-toys.skill" class="download">⬇️ Download Skill Package</a>
     
     <h2>Features</h2>
-    <div class="feature"><strong>branch</strong> — Branch conversations with visual picker UI</div>
+    <div class="feature"><strong>branch</strong> — Branch conversations from any point with visual picker UI</div>
     <div class="feature"><strong>spawn</strong> — Create sub-agents in separate context windows</div>
-    <div class="feature"><strong>checkpoint</strong> — Named savepoints within conversations</div>
     <div class="feature"><strong>memory</strong> — Persistent notes across conversations</div>
     <div class="feature"><strong>status</strong> — Context window usage monitoring</div>
     
@@ -51,20 +50,17 @@
 export PATH="$PATH:$HOME/.shelley-power-toys/scripts"</code></pre>
     
     <h2>Quick Start</h2>
-    <pre><code># Branch a conversation
-./scripts/branch
+    <pre><code># Branch a conversation (launches visual picker)
+scripts/branch -c &lt;conversation_id&gt;
 
 # Spawn a sub-agent
-./scripts/spawn "analyze the logs"
-
-# Save a checkpoint
-./scripts/checkpoint save "before-refactor"
+scripts/spawn "analyze the logs"
 
 # Store a memory
-./scripts/memory set "api-key" "in .env"
+scripts/memory set "api-key" "in .env"
 
 # Check context usage
-./scripts/status</code></pre>
+scripts/status</code></pre>
     
     <p><a href="https://github.com/jmandel/shelley-power-toys">View on GitHub →</a></p>
   </div>
