@@ -159,7 +159,8 @@ def run_branch_picker(
     conversation_id: str = None,
     pick_conversation: bool = False,
     shelley_ui_base: str = None,
-    port: int = None
+    port: int = None,
+    timeout: int = 600  # 10 minute default timeout
 ) -> str:
     if port is None:
         port = find_free_port()
@@ -177,22 +178,43 @@ def run_branch_picker(
     BranchPickerHandler.shelley_ui_base = shelley_ui_base
     
     server = HTTPServer(('0.0.0.0', port), BranchPickerHandler)
+    server.timeout = 30  # Check for shutdown every 30 seconds
     
     if 'exe.xyz' in hostname:
         url = f"https://{hostname}:{port}/"
     else:
         url = f"http://localhost:{port}/"
     
-    print(f"Branch picker: {url}", file=sys.stderr)
+    # Print URL to stdout (for scripts to capture) and stderr (for humans)
     print(url)
+    print(f"Branch picker running at: {url}", file=sys.stderr)
     sys.stdout.flush()
+    sys.stderr.flush()
+    
+    import time
+    start_time = time.time()
+    last_request = time.time()
+    
+    # Track requests to reset timeout
+    original_handle = BranchPickerHandler.handle_one_request
+    def handle_with_timeout_reset(self):
+        nonlocal last_request
+        last_request = time.time()
+        return original_handle(self)
+    BranchPickerHandler.handle_one_request = handle_with_timeout_reset
     
     try:
-        server.serve_forever()
+        while True:
+            server.handle_request()
+            
+            # Check timeout (no requests for `timeout` seconds)
+            if timeout and (time.time() - last_request > timeout):
+                print(f"\nShutting down after {timeout}s of inactivity", file=sys.stderr)
+                break
     except KeyboardInterrupt:
-        pass
+        print("\nShutting down...", file=sys.stderr)
     finally:
-        server.shutdown()
+        server.server_close()
     
     return url
 

@@ -10,10 +10,13 @@ Usage:
 
 import argparse
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
 from lib import db
 
 
@@ -23,6 +26,7 @@ def main():
     parser.add_argument('-s', '--sequence', type=int, help='Branch at this sequence (skip UI)')
     parser.add_argument('--pick', action='store_true', help='Show conversation picker')
     parser.add_argument('--port', type=int, default=0, help='Port for UI server (0=auto)')
+    parser.add_argument('--foreground', action='store_true', help='Run server in foreground')
     args = parser.parse_args()
     
     # If sequence provided, branch directly without UI
@@ -41,20 +45,59 @@ def main():
             sys.exit(1)
         return
     
-    # Otherwise launch the picker UI
-    from ui.server import run_branch_picker
+    # Build server command
+    server_script = SCRIPT_DIR / 'ui' / 'server.py'
+    cmd = [sys.executable, str(server_script)]
     
     conversation_id = args.conversation
     if not conversation_id and not args.pick:
         conversation_id = os.environ.get('SHELLEY_CONVERSATION_ID')
     
-    pick = args.pick or not conversation_id
+    if conversation_id:
+        cmd.extend(['-c', conversation_id])
+    if args.pick or not conversation_id:
+        cmd.append('--pick')
+    if args.port:
+        cmd.extend(['--port', str(args.port)])
     
-    run_branch_picker(
-        conversation_id=conversation_id,
-        pick_conversation=pick,
-        port=args.port if args.port else None
-    )
+    if args.foreground:
+        # Run in foreground (blocking)
+        os.execv(sys.executable, cmd)
+    else:
+        # Run in background, capture URL from first line of output
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Wait a moment for server to start and print URL
+        time.sleep(0.5)
+        
+        # Read the URL from stdout (server prints it on first line)
+        url = None
+        try:
+            # Non-blocking read
+            import select
+            if select.select([proc.stdout], [], [], 1.0)[0]:
+                url = proc.stdout.readline().strip()
+        except:
+            pass
+        
+        if url and url.startswith('http'):
+            print(f"Branch picker running at: {url}")
+            print(f"")
+            print(f"The picker will stay running until you close it (Ctrl+C in terminal)")
+            print(f"or it times out after 10 minutes of inactivity.")
+        else:
+            # Fallback: check stderr
+            stderr = proc.stderr.readline()
+            if 'http' in stderr:
+                print(stderr)
+            else:
+                print(f"Server started (PID {proc.pid})")
+                print(f"Check ports 8100-8199 for the picker UI")
 
 
 if __name__ == '__main__':
