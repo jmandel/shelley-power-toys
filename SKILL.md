@@ -20,10 +20,7 @@ Power tools for managing Shelley conversations and context on exe.dev.
 Required values for the tools:
 
 - **Database path**: In your system prompt
-- **Hostname**: In your system prompt (e.g. `older` → `older.exe.xyz`)
-- **Shelley UI port**: Run `ss -tlnp | grep shelley` to find the port
-
-Construct the Shelley UI URL as `https://<hostname>.exe.xyz:<port>`
+- **Shelley UI base URL**: May be in your system prompt. Otherwise construct from hostname (in system prompt) + port from `ss -tlnp | grep shelley` → `https://<hostname>.exe.xyz:<port>`
 
 ## Commands
 
