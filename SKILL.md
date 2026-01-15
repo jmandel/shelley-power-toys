@@ -15,6 +15,20 @@ description: >
 
 Power tools for managing Shelley conversations and context on exe.dev.
 
+## Setup
+
+The scripts need to find Shelley's database. Find it from the running process:
+
+```bash
+# Find the Shelley database path
+export SHELLEY_DB=$(ps aux | grep '[s]helley.*-db' | grep -oP '(?<=-db )\S+')
+
+# Verify it exists
+ls -la "$SHELLEY_DB"
+```
+
+Default location is `~/.config/shelley/shelley.db` but always check the running process.
+
 ## Commands
 
 | Script | Purpose |
