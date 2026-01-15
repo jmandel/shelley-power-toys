@@ -4,11 +4,9 @@ description: >
   Power tools for Shelley agent management on exe.dev VMs. Use when users want to:
   (1) Branch a conversation from a specific point to explore alternatives or unstick a stuck conversation,
   (2) Spawn sub-agents to handle isolated tasks without consuming context window,
-  (3) Persist memory/notes across conversations,
-  (4) Check context window usage and conversation health.
+  (3) Check context window usage and conversation health.
   Triggers on: "branch this conversation", "branch from earlier", "unstick", "spawn a sub-agent",
-  "run this in background", "remember this", "what do you remember",
-  "how much context", "context window status".
+  "run this in background", "how much context", "context window status".
 ---
 
 # Shelley Power Toys
@@ -28,7 +26,6 @@ Required values for the tools:
 |--------|--------|
 | `branch` | Branch conversations with visual picker UI |
 | `spawn` | Create sub-agents in separate context windows |
-| `memory` | Persistent key-value and notes across conversations |
 | `status` | Context window usage and conversation health |
 
 ## branch
@@ -70,30 +67,6 @@ scripts/spawn "Build a web scraper" --async
 # With specific working directory
 scripts/spawn "Run tests" --cwd /path/to/project
 ```
-
-## memory
-
-Memory persists facts and notes across all conversations.
-
-```bash
-# Store facts
-scripts/memory set "db-password" "stored in .env.local"
-scripts/memory set "preferred-language" "TypeScript"
-
-# Retrieve
-scripts/memory get "db-password"
-
-# Add freeform notes
-scripts/memory note "User prefers minimal dependencies"
-
-# Search
-scripts/memory search "password"
-
-# List all
-scripts/memory list
-```
-
-Memories stored in `~/.config/shelley/power-toys-memory.json`.
 
 ## status
 
