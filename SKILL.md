@@ -20,7 +20,8 @@ Power tools for managing Shelley conversations and context on exe.dev.
 Before using these tools, find Shelley's database and UI URL:
 
 ```bash
-# Find Shelley's database from the running process
+# Database path: check Shelley's system prompt first - it includes the path
+# if a database is configured. Otherwise find it from the running process:
 SHELLEY_DB=$(ps aux | grep '[s]helley.*-db' | grep -oP '(?<=-db )\S+')
 
 # Find Shelley's port and construct the UI base URL
